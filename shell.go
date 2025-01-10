@@ -2,15 +2,23 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 )
 
-var flag = true
+var flag, stop = true, false
 var path string
+var last string = "-"
+var bff bytes.Buffer
+var commandLine string
+var muu sync.Mutex
+var reader = bufio.NewReader(&bff)
 
 func initLoc() {
 	execPath, err := os.Executable()
@@ -52,7 +60,7 @@ func runALine(s string) {
 		return
 	}
 
-	cmd.Stdin = os.Stdin // Bind the stdin of the process to our stdin
+	cmd.Stdin = &bff // Bind the stdin of the process to our stdin
 	flag = false
 	// Start the command
 	if err := cmd.Start(); err != nil {
@@ -60,7 +68,6 @@ func runALine(s string) {
 		return
 	}
 
-	// Read the output and print it in real-time
 	go func() {
 		reader := bufio.NewReader(cmdOutput)
 		for {
@@ -87,24 +94,51 @@ func runALine(s string) {
 	}
 }
 
+func testit() {
+	muu.Lock()
+	bff.WriteString("exit\n")
+	muu.Unlock()
+}
+
 func main() {
 	fmt.Println("Welcome to the Go Shell!")
 	initLoc()
 	fmt.Println("Type 'up'/'down' to last/next history command.")
 	fmt.Println("Type 'exit' to quit the shell.")
 
-	reader := bufio.NewReader(os.Stdin)
+	reader.Reset(&bff)
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				req()
+			}
+		}
+	}()
+
 	var history []string
 	i := 0
-
+	muu.Lock()
+	bff.WriteString("ipconfig\n")
+	muu.Unlock()
 	for {
 		fmt.Print("> ")
 		flag = true
-		commandLine, _ := reader.ReadString('\n')
-		commandLine = strings.TrimSpace(commandLine)
+		for {
+			commandLine, _ = reader.ReadString('\n')
+			commandLine = strings.TrimSpace(commandLine)
+			if commandLine != "" {
+				break
+			}
+		}
+		fmt.Printf("%s\n", commandLine)
 
 		if commandLine == "exit" {
 			fmt.Println("Exiting the shell. Goodbye!")
+			stop = true
 			break
 		}
 
