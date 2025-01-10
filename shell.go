@@ -1,28 +1,24 @@
-//go:build windows
-// +build windows
-
 package main
 
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-var flag bool = true
+var flag = true
 var path string
 
-func init_loc() {
+func initLoc() {
 	execPath, err := os.Executable()
 	if len(os.Args) < 2 {
 		if err != nil {
 			execPath = "./"
 		}
-		fmt.Printf("No input location, will use: %s\n", filepath.Dir(execPath))
+		fmt.Printf("No input location, we will use: %s\n", filepath.Dir(execPath))
 	} else {
 		execPath = removeQuotes(os.Args[1])
 		fmt.Printf("Using input location: %s\n", execPath)
@@ -32,7 +28,7 @@ func init_loc() {
 	return
 }
 
-func run_a_line(s string) {
+func runALine(s string) {
 	parts := strings.Fields(s)
 	if len(parts) == 0 {
 		return
@@ -58,7 +54,6 @@ func run_a_line(s string) {
 
 	cmd.Stdin = os.Stdin // Bind the stdin of the process to our stdin
 	flag = false
-
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Error starting command: %s\n", err)
@@ -67,19 +62,26 @@ func run_a_line(s string) {
 
 	// Read the output and print it in real-time
 	go func() {
-		_, err := io.Copy(os.Stdout, cmdOutput)
-		if err != nil {
-			return
+		reader := bufio.NewReader(cmdOutput)
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return
+			}
+			fmt.Print(line)
 		}
 	}()
 	go func() {
-		_, err := io.Copy(os.Stderr, cmdError)
-		if err != nil {
-			return
+		reader := bufio.NewReader(cmdError)
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return
+			}
+			fmt.Print(line)
 		}
 	}()
 
-	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
 		fmt.Printf("Command finished with error: %s\n", err)
 	}
@@ -87,7 +89,7 @@ func run_a_line(s string) {
 
 func main() {
 	fmt.Println("Welcome to the Go Shell!")
-	init_loc()
+	initLoc()
 	fmt.Println("Type 'up'/'down' to last/next history command.")
 	fmt.Println("Type 'exit' to quit the shell.")
 
@@ -110,23 +112,23 @@ func main() {
 			if i > 0 {
 				i--
 				fmt.Printf("> %s\n", history[i])
-				run_a_line(history[i])
+				runALine(history[i])
 			}
 			continue
 		} else if commandLine == "down" {
 			if i < len(history)-1 {
 				i++
 				fmt.Printf("> %s\n", history[i])
-				run_a_line(history[i])
+				runALine(history[i])
 			}
 			continue
 		} else {
-			if flag {
+			if flag && commandLine != "" {
 				history = append(history, commandLine)
 				i = len(history)
 			}
 		}
 
-		run_a_line(commandLine)
+		runALine(commandLine)
 	}
 }
