@@ -25,4 +25,4 @@ jobs:
       run: go build -v ./shell.go ./function.go
 
     - name: Test
-      run: go test -v ./shell.go
+      run: go test -v ./shell.go ./function.go
