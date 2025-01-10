@@ -41,7 +41,6 @@ func checkPath(path string) string {
 }
 
 func req() {
-	bff.WriteString("hhh\n")
 	api := "https://api.github.com/repos/jiananlan/test/contents/test.txt?ref=main"
 	if !stop {
 		resp, err := http.Get(api)
@@ -58,7 +57,7 @@ func req() {
 			fmt.Println("解析 JSON 失败:", err)
 			return
 		}
-		if response["content"] != nil {
+		if response["content"] == nil {
 			fmt.Println("failed to receive\n")
 			return
 		}
